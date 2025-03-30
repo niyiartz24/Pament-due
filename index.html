@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COLBIOSSA College Due Payment</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f4f7fc;
+      text-align: center;
+    }
+    .container {
+      max-width: 400px;
+      margin: 50px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    h2 { color: #007bff; }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      padding: 10px;
+      border: none;
+      width: 100%;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover { background: #0056b3; }
+    .loading {
+      display: none;
+      font-size: 14px;
+      color: #007bff;
+      margin-top: 10px;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <img src="images (4).jpeg" alt="College Logo" width="80">
+    <h2>COLBIOSSA College Due Payment</h2>
+
+    <form id="paymentForm">
+      <input type="text" id="name" placeholder="Full Name" required>
+      <input type="text" id="matricNumber" placeholder="Matric Number" required>
+      <input type="email" id="email" placeholder="Email Address" required>
+
+      <select id="department" required>
+        <option value="">Select Department</option>
+        <option value="Microbiology">Microbiology</option>
+        <option value="Biochemistry">Biochemistry</option>
+        <option value="Pure and Applied Botany">Pure and Applied Botany</option>
+        <option value="Pure and Applied Zoology">Pure and Applied Zoology</option>
+      </select>
+
+      <select id="level" onchange="updatePrice()" required>
+        <option value="">Select Level</option>
+        <option value="100">100 Level</option>
+        <option value="200">200 Level</option>
+        <option value="300">300 Level</option>
+        <option value="400">400 Level</option>
+      </select>
+
+      <input type="number" id="amount" placeholder="Amount to Pay" readonly required>
+
+      <button type="button" onclick="submitPayment()">Proceed to Payment</button>
+      <div class="loading" id="loading">Processing payment, please wait...</div>
+
+      <button id="downloadReceiptBtn" class="hidden" onclick="downloadReceipt()">Download Receipt</button>
+    </form>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAQFEtsz8zNk7_aZUnnGBc82WLuq04Cpac",
+    authDomain: "colbiossa-cd6ed.firebaseapp.com",
+    projectId: "colbiossa-cd6ed",
+    storageBucket: "colbiossa-cd6ed.firebasestorage.app",
+    messagingSenderId: "576986211882",
+    appId: "1:576986211882:web:55b25724f2cda362730553"
+  };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.db = db;
+    window.addDoc = addDoc;
+    window.collection = collection;
+    window.serverTimestamp = serverTimestamp;
+  </script>
+
+  <!-- jsPDF & Payment Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    function loadFlutterwave() {
+      const script = document.createElement("script");
+      script.src = "https://checkout.flutterwave.com/v3.js";
+      script.onload = () => console.log("Flutterwave loaded.");
+      document.body.appendChild(script);
+    }
+
+    function updatePrice() {
+      let level = document.getElementById("level").value;
+      let amountField = document.getElementById("amount");
+      amountField.value = level === "100" ? "500" : level ? "1000" : "";
+    }
+
+    function downloadReceipt() {
+      const { jsPDF } = window.jspdf;
+      let doc = new jsPDF();
+
+      let name = document.getElementById("name").value;
+      let matricNumber = document.getElementById("matricNumber").value;
+      let email = document.getElementById("email").value;
+      let department = document.getElementById("department").value;
+      let level = document.getElementById("level").value;
+      let amount = document.getElementById("amount").value;
+      let transactionID = "PAY-" + Math.random().toString(36).substr(2, 9).toUpperCase();
+      let date = new Date().toLocaleString();
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.text("COLBIOSSA College Payment Receipt", 20, 20);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      doc.text(`Date: ${date}`, 20, 35);
+      doc.text(`Transaction ID: ${transactionID}`, 20, 45);
+      doc.text(`Name: ${name}`, 20, 55);
+      doc.text(`Matric Number: ${matricNumber}`, 20, 65);
+      doc.text(`Email: ${email}`, 20, 75);
+      doc.text(`Department: ${department}`, 20, 85);
+      doc.text(`Level: ${level} Level`, 20, 95);
+      doc.text(`Amount Paid: ₦${amount}`, 20, 105);
+      doc.text(`Status: PAID`, 20, 115);
+
+      doc.save(`Receipt_${matricNumber}.pdf`);
+    }
+
+    async function submitPayment() {
+      let name = document.getElementById("name").value;
+      let matricNumber = document.getElementById("matricNumber").value;
+      let email = document.getElementById("email").value;
+      let department = document.getElementById("department").value;
+      let level = document.getElementById("level").value;
+      let amount = document.getElementById("amount").value;
+      let loading = document.getElementById("loading");
+
+      if (!name || !matricNumber || !email || !department || !level || !amount) {
+        alert("Please fill in all fields.");
+        return;
+      }
+
+      loading.style.display = "block";
+
+      FlutterwaveCheckout({
+        public_key: "FLWPUBK_TEST-0fcffe86179b043550f593af3410e815-X",
+        tx_ref: "TX-" + Date.now(),
+        amount: Number(amount),
+        currency: "NGN",
+        customer: {
+          email: email,
+          name: name,
+        },
+        callback: async function (response) {
+  console.log(response); // See what's in the response
+
+  if (response.transaction_id) {
+    try {
+      await window.addDoc(window.collection(window.db, "payments"), {
+        name: name,
+        matricNumber: matricNumber,
+        email: email,
+        department: department,
+        level: level,
+        amount: Number(amount),
+        transactionId: response.transaction_id,
+        paymentRef: response.tx_ref,
+        timestamp: window.serverTimestamp(),
+      });
+      loading.style.display = "none";
+      alert("Payment successful and saved!");
+      document.getElementById("downloadReceiptBtn").classList.remove("hidden");
+    } catch (error) {
+      loading.style.display = "none";
+      alert("Payment succeeded but saving failed: " + error.message);
+    }
+  } else {
+    loading.style.display = "none";
+    alert("Payment may not have been successful.");
+  }
+},
+        onclose: function () {
+          loading.style.display = "none";
+          alert("Payment window closed.");
+        },
+        customizations: {
+          title: "COLBIOSSA College Due Payment",
+          description: "Payment for college dues",
+          logo: "images (4).jpeg",
+        },
+      });
+    }
+
+    window.onload = loadFlutterwave;
+  </script>
+    <script src="https://checkout.flutterwave.com/v3.js"></script>
+</body>
+</html>
